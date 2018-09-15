@@ -5,7 +5,9 @@ package amass
 
 import (
 	"bufio"
+	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -208,7 +210,7 @@ func (e *Enumeration) generateAmassConfig() (*core.AmassConfig, error) {
 	return config, nil
 }
 
-func (e *Enumeration) Start() error {
+func (e *Enumeration) Start(ctx context.Context) error {
 	var services []core.AmassService
 
 	config, err := e.generateAmassConfig()
@@ -246,15 +248,23 @@ func (e *Enumeration) Start() error {
 	t := time.NewTicker(time.Second)
 loop:
 	for {
+
 		select {
+
+		case <-ctx.Done():
+			break loop
+
 		case <-e.pause:
+			fmt.Println("Pause")
 			t.Stop()
 		case <-e.resume:
+			fmt.Println("Resume")
 			t = time.NewTicker(time.Second)
 		case <-t.C:
 			done := true
 
 			for _, service := range services {
+
 				if service.IsActive() {
 					done = false
 					break
@@ -276,7 +286,7 @@ loop:
 	bus.Unsubscribe(core.OUTPUT, e.sendOutput)
 	bus.WaitAsync()
 	close(e.done)
-	time.Sleep(2 * time.Second)
+	// time.Sleep(2 * time.Second)
 	close(e.Output)
 	return nil
 }
